@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreOrderRequest;
 use App\Models\Order;
 use App\Services\Order\OrderService;
 use Illuminate\Http\Request;
@@ -31,12 +32,9 @@ class OrderController extends Controller
         return response()->json($query->get());
     }
 
-    public function store(Request $request)
+    public function store(StoreOrderRequest $request)
     {
-        $payload = $request->validate([
-            'delivery_address' => ['required', 'string', 'max:500'],
-            'customer_note' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $payload = $request->validated();
 
         try {
             $order = $this->orderService->createFromCart(

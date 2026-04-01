@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\MenuQueryRequest;
 use App\Models\MenuItem;
 use App\Models\Restaurant;
 use App\Services\ActivityLogger;
@@ -19,15 +20,24 @@ class MenuItemController extends Controller
     ) {
     }
 
-    public function index(Restaurant $restaurant): JsonResponse
+    public function index(MenuQueryRequest $request, Restaurant $restaurant): JsonResponse
     {
-        $items = $restaurant->menuItems()
+        if (! $restaurant->is_active) {
+            return response()->json(['message' => 'Restaurant not available.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $validated = $request->validated();
+
+        $query = $restaurant->menuItems()
             ->where('is_available', true)
             ->orderBy('category')
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
 
-        return response()->json($items);
+        if (! empty($validated['category'])) {
+            $query->where('category', $validated['category']);
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request, Restaurant $restaurant): JsonResponse

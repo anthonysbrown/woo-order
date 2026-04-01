@@ -3,24 +3,26 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RestaurantBrowseRequest;
 use App\Models\Restaurant;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class RestaurantController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(RestaurantBrowseRequest $request): JsonResponse
     {
+        $validated = $request->validated();
+
         $query = Restaurant::query()
             ->withCount('menuItems')
             ->where('is_active', true)
             ->latest();
 
-        if ($request->filled('search')) {
-            $query->where('name', 'like', '%'.$request->string('search').'%');
+        if (! empty($validated['search'])) {
+            $query->where('name', 'like', '%'.$validated['search'].'%');
         }
 
-        $restaurants = $query->paginate((int) $request->integer('per_page', 10));
+        $restaurants = $query->paginate((int) ($validated['per_page'] ?? 12));
 
         return response()->json($restaurants);
     }
