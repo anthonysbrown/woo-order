@@ -207,7 +207,7 @@ class OrderService
         }
 
         $subtotal = round($subtotal, 2);
-        $deliveryFee = $subtotal > 0 ? (float) config('order.default_delivery_fee', 4.99) : 0.0;
+        $deliveryFee = $subtotal > 0 ? (float) config('order.delivery_fee', 4.99) : 0.0;
         $taxRate = (float) config('order.tax_rate', 0.08);
         $taxAmount = round($subtotal * $taxRate, 2);
         $totalAmount = round($subtotal + $deliveryFee + $taxAmount, 2);

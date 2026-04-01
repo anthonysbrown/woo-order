@@ -11,16 +11,25 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AdminController extends Controller
 {
+    private const DEFAULT_PER_PAGE = 20;
+
+    private const MAX_PER_PAGE = 100;
+
     public function __construct(private readonly ActivityLogger $activityLogger)
     {
     }
 
     public function users(Request $request)
     {
+        $perPage = min(
+            self::MAX_PER_PAGE,
+            max(1, (int) $request->integer('per_page', self::DEFAULT_PER_PAGE))
+        );
+
         $users = User::query()
-            ->with('role')
+            ->with('role:id,name')
             ->latest()
-            ->paginate((int) $request->integer('per_page', 20));
+            ->paginate($perPage);
 
         return response()->json($users);
     }
@@ -51,10 +60,15 @@ class AdminController extends Controller
 
     public function restaurants(Request $request)
     {
+        $perPage = min(
+            self::MAX_PER_PAGE,
+            max(1, (int) $request->integer('per_page', self::DEFAULT_PER_PAGE))
+        );
+
         $restaurants = Restaurant::query()
-            ->with(['owner.role'])
+            ->with(['owner:id,role_id,name,email', 'owner.role:id,name'])
             ->latest()
-            ->paginate((int) $request->integer('per_page', 20));
+            ->paginate($perPage);
 
         return response()->json($restaurants);
     }

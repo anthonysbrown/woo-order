@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class MenuQueryRequest extends FormRequest
+class UpdateOrderStatusRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,7 +14,7 @@ class MenuQueryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'category' => ['sometimes', 'string', 'max:80'],
+            'status' => ['required', 'in:accepted,rejected,preparing,delivered'],
         ];
     }
 }

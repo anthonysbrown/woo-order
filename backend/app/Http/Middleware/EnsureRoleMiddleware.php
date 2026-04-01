@@ -18,7 +18,7 @@ class EnsureRoleMiddleware
     {
         $user = $request->user();
 
-        if (!$user || !$user->role || !in_array($user->role->name, $roles, true)) {
+        if (! $user || ! $user->role || ! in_array($user->role->name, $roles, true)) {
             return new JsonResponse(['message' => 'Forbidden for this role.'], Response::HTTP_FORBIDDEN);
         }
 

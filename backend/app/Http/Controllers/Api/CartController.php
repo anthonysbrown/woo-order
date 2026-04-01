@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\Cart\CartService;
+use App\Support\Sanitizer;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -31,6 +32,7 @@ class CartController extends Controller
             'menu_item_id' => ['required', 'integer', 'exists:menu_items,id'],
             'quantity' => ['required', 'integer', 'min:1'],
         ]);
+        $validated = Sanitizer::trimStrings($validated);
 
         try {
             $cart = $this->cartService->addItem(
@@ -39,7 +41,9 @@ class CartController extends Controller
                 (int) $validated['quantity']
             );
         } catch (Throwable $exception) {
-            return response()->json(['message' => $exception->getMessage()], Response::HTTP_BAD_REQUEST);
+            report($exception);
+
+            return response()->json(['message' => 'Unable to update cart right now.'], Response::HTTP_BAD_REQUEST);
         }
 
         return response()->json([
@@ -53,12 +57,19 @@ class CartController extends Controller
         $validated = $request->validate([
             'quantity' => ['required', 'integer', 'min:1'],
         ]);
+        $validated = Sanitizer::trimStrings($validated);
 
-        $cart = $this->cartService->updateItemQuantity(
-            $request->user(),
-            $cartItemId,
-            (int) $validated['quantity']
-        );
+        try {
+            $cart = $this->cartService->updateItemQuantity(
+                $request->user(),
+                $cartItemId,
+                (int) $validated['quantity']
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json(['message' => 'Unable to update cart item.'], Response::HTTP_BAD_REQUEST);
+        }
 
         return response()->json([
             'cart' => $cart,
@@ -68,7 +79,13 @@ class CartController extends Controller
 
     public function removeItem(Request $request, int $cartItemId)
     {
-        $cart = $this->cartService->removeItem($request->user(), $cartItemId);
+        try {
+            $cart = $this->cartService->removeItem($request->user(), $cartItemId);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json(['message' => 'Unable to remove cart item.'], Response::HTTP_BAD_REQUEST);
+        }
 
         return response()->json([
             'cart' => $cart,

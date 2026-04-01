@@ -27,4 +27,13 @@ class StoreOrderRequest extends FormRequest
             'idempotency_key' => ['nullable', 'string', 'max:64'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'delivery_address' => is_string($this->delivery_address) ? trim($this->delivery_address) : $this->delivery_address,
+            'customer_note' => is_string($this->customer_note) ? trim($this->customer_note) : $this->customer_note,
+            'idempotency_key' => is_string($this->idempotency_key) ? trim($this->idempotency_key) : $this->idempotency_key,
+        ]);
+    }
 }

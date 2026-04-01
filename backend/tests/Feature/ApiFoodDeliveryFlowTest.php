@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Restaurant;
+use App\Models\ActivityLog;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -122,5 +123,87 @@ class ApiFoodDeliveryFlowTest extends TestCase
 
         $this->assertSame($first['id'], $second['id']);
         $this->assertDatabaseCount('orders', 1);
+    }
+
+    public function test_orders_endpoint_is_paginated(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $customerLogin = $this->postJson('/api/auth/login', [
+            'email' => 'customer@foodhub.test',
+            'password' => 'password123',
+        ])->assertOk()->json();
+
+        $customerToken = $customerLogin['token'];
+
+        $restaurant = Restaurant::query()->firstOrFail();
+        $menuItem = MenuItem::query()->where('restaurant_id', $restaurant->id)->firstOrFail();
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson('/api/cart/items', [
+                'menu_item_id' => $menuItem->id,
+                'quantity' => 1,
+            ], [
+                'Authorization' => "Bearer {$customerToken}",
+            ])->assertCreated();
+
+            $this->postJson('/api/orders', [
+                'delivery_address' => '123 Test Street',
+                'idempotency_key' => 'pagination-'.$i,
+            ], [
+                'Authorization' => "Bearer {$customerToken}",
+            ])->assertCreated();
+        }
+
+        $this->getJson('/api/orders?per_page=2', [
+            'Authorization' => "Bearer {$customerToken}",
+        ])->assertOk()
+            ->assertJsonStructure([
+                'data',
+                'current_page',
+                'per_page',
+                'total',
+            ]);
+    }
+
+    public function test_auth_login_is_rate_limited_after_threshold(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        for ($i = 0; $i < 12; $i++) {
+            $this->postJson('/api/auth/login', [
+                'email' => 'customer@foodhub.test',
+                'password' => 'wrong-password',
+            ]);
+        }
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'customer@foodhub.test',
+            'password' => 'wrong-password',
+        ])->assertStatus(429);
+    }
+
+    public function test_activity_endpoint_is_paginated(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $adminLogin = $this->postJson('/api/auth/login', [
+            'email' => 'admin@foodhub.test',
+            'password' => 'password123',
+        ])->assertOk()->json();
+
+        ActivityLog::query()->create([
+            'action' => 'test.activity',
+        ]);
+
+        $this->getJson('/api/admin/activity?per_page=10', [
+            'Authorization' => 'Bearer '.$adminLogin['token'],
+        ])->assertOk()
+            ->assertJsonStructure([
+                'data',
+                'current_page',
+                'per_page',
+                'total',
+            ]);
     }
 }

@@ -8,6 +8,7 @@ use App\Models\MenuItem;
 use App\Models\Restaurant;
 use App\Services\ActivityLogger;
 use App\Services\Restaurant\MenuService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,17 +28,27 @@ class MenuItemController extends Controller
         }
 
         $validated = $request->validated();
+        $cacheKey = sprintf(
+            'restaurant:%d:menu:%s',
+            $restaurant->id,
+            md5(json_encode($validated))
+        );
+        $ttl = now()->addSeconds((int) config('app.public_api_cache_ttl', 60));
 
-        $query = $restaurant->menuItems()
-            ->where('is_available', true)
-            ->orderBy('category')
-            ->orderBy('name');
+        $menuItems = Cache::remember($cacheKey, $ttl, function () use ($restaurant, $validated) {
+            $query = $restaurant->menuItems()
+                ->where('is_available', true)
+                ->orderBy('category')
+                ->orderBy('name');
 
-        if (! empty($validated['category'])) {
-            $query->where('category', $validated['category']);
-        }
+            if (! empty($validated['category'])) {
+                $query->where('category', $validated['category']);
+            }
 
-        return response()->json($query->get());
+            return $query->get();
+        });
+
+        return response()->json($menuItems);
     }
 
     public function store(Request $request, Restaurant $restaurant): JsonResponse

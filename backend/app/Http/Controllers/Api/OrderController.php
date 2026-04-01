@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\OrderIndexRequest;
 use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOrderStatusRequest;
 use App\Models\Order;
 use App\Services\Order\OrderService;
+use App\Support\Sanitizer;
 use Illuminate\Http\Request;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,12 +19,18 @@ class OrderController extends Controller
     {
     }
 
-    public function index(Request $request)
+    public function index(OrderIndexRequest $request)
     {
+        $validated = Sanitizer::trimStrings($request->validated());
         $user = $request->user();
 
         $query = Order::query()
-            ->with(['items', 'restaurant', 'statusHistory', 'customer'])
+            ->with([
+                'items:id,order_id,menu_item_id,name,quantity,unit_price,line_total',
+                'restaurant:id,name,address',
+                'statusHistory:id,order_id,status,changed_at',
+                'customer:id,name,email',
+            ])
             ->latest()
             ->when($user->hasRole('customer'), fn ($q) => $q->where('customer_id', $user->id))
             ->when(
@@ -29,12 +38,14 @@ class OrderController extends Controller
                 fn ($q) => $q->whereIn('restaurant_id', $user->restaurants()->pluck('id'))
             );
 
-        return response()->json($query->get());
+        $orders = $query->paginate((int) ($validated['per_page'] ?? 15));
+
+        return response()->json($orders);
     }
 
     public function store(StoreOrderRequest $request)
     {
-        $payload = $request->validated();
+        $payload = Sanitizer::trimStrings($request->validated());
 
         try {
             $order = $this->orderService->createFromCart(
@@ -50,7 +61,7 @@ class OrderController extends Controller
         return response()->json($order, Response::HTTP_CREATED);
     }
 
-    public function show(Request $request, Order $order)
+    public function show(OrderIndexRequest $request, Order $order)
     {
         $user = $request->user();
         $canAccess = $order->customer_id === $user->id
@@ -64,16 +75,14 @@ class OrderController extends Controller
         return response()->json($order->load(['items', 'restaurant', 'statusHistory', 'payment']));
     }
 
-    public function track(Request $request, Order $order)
+    public function track(OrderIndexRequest $request, Order $order)
     {
         return $this->show($request, $order);
     }
 
-    public function updateStatus(Request $request, Order $order)
+    public function updateStatus(UpdateOrderStatusRequest $request, Order $order)
     {
-        $payload = $request->validate([
-            'status' => ['required', 'in:accepted,rejected,preparing,delivered'],
-        ]);
+        $payload = Sanitizer::trimStrings($request->validated());
 
         $user = $request->user();
         $ownerAllowed = $user->hasRole('restaurant_owner') && $user->restaurants()->whereKey($order->restaurant_id)->exists();

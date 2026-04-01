@@ -3,43 +3,42 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AuthLoginRequest;
+use App\Http\Requests\AuthRegisterRequest;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\Auth\JwtService;
+use App\Support\Sanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
 {
     public function __construct(
         private readonly JwtService $jwtService,
-        private readonly ActivityLogger $activityLogger
+        private readonly ActivityLogger $activityLogger,
+        private readonly Sanitizer $sanitizer
     ) {
     }
 
-    public function register(Request $request)
+    public function register(AuthRegisterRequest $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string', 'max:500'],
-            'role' => ['required', Rule::in(['customer', 'restaurant_owner'])],
-        ]);
+        $validated = $request->validated();
+        $sanitizedName = Sanitizer::text($validated['name']);
+        $sanitizedAddress = isset($validated['address']) ? Sanitizer::text($validated['address']) : null;
+        $sanitizedPhone = isset($validated['phone']) ? preg_replace('/[^0-9+\-\s]/', '', $validated['phone']) : null;
 
         $role = Role::query()->where('name', $validated['role'])->firstOrFail();
 
         $user = User::query()->create([
             'role_id' => $role->id,
-            'name' => $validated['name'],
-            'email' => $validated['email'],
+            'name' => $sanitizedName,
+            'email' => strtolower($validated['email']),
             'password' => Hash::make($validated['password']),
-            'phone' => $validated['phone'] ?? null,
-            'address' => $validated['address'] ?? null,
+            'phone' => $sanitizedPhone,
+            'address' => $sanitizedAddress,
         ])->load('role');
 
         $this->activityLogger->log($user, 'auth.registered', User::class, $user->id);
@@ -52,14 +51,14 @@ class AuthController extends Controller
         ], Response::HTTP_CREATED);
     }
 
-    public function login(Request $request)
+    public function login(AuthLoginRequest $request)
     {
-        $validated = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+        $validated = $request->validated();
 
-        $user = User::query()->with('role')->where('email', $validated['email'])->first();
+        $user = User::query()
+            ->with('role')
+            ->where('email', strtolower($validated['email']))
+            ->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json(['message' => 'Invalid credentials.'], Response::HTTP_UNAUTHORIZED);

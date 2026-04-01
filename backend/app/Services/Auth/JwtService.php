@@ -12,11 +12,15 @@ class JwtService
     {
         $ttlMinutes = (int) config('jwt.ttl_minutes', 120);
         $now = time();
+        $jti = bin2hex(random_bytes(16));
 
         $payload = [
             'iss' => config('app.url'),
+            'aud' => config('app.url'),
             'sub' => $user->id,
+            'jti' => $jti,
             'iat' => $now,
+            'nbf' => $now,
             'exp' => $now + ($ttlMinutes * 60),
             'role' => optional($user->role)->name,
         ];

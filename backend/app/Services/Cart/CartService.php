@@ -92,8 +92,9 @@ class CartService
         }
 
         $subtotal = round($subtotal, 2);
-        $deliveryFee = $subtotal === 0.0 ? 0.0 : 3.99;
-        $taxAmount = round($subtotal * 0.08, 2);
+        $deliveryFee = $subtotal === 0.0 ? 0.0 : (float) config('order.delivery_fee', 4.99);
+        $taxRate = (float) config('order.tax_rate', 0.08);
+        $taxAmount = round($subtotal * $taxRate, 2);
         $totalAmount = round($subtotal + $deliveryFee + $taxAmount, 2);
 
         return [
