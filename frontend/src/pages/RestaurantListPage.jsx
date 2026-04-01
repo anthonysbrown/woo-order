@@ -1,32 +1,32 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { api } from '../api/client';
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { getRestaurants } from '../api/client'
 
 export default function RestaurantListPage() {
-  const [restaurants, setRestaurants] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [restaurants, setRestaurants] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const fetchRestaurants = async () => {
       try {
-        const response = await api.get("/restaurants");
-        setRestaurants(response.data.data ?? []);
+        const data = await getRestaurants()
+        setRestaurants(data)
       } catch (err) {
-        setError(err.response?.data?.message ?? 'Failed to load restaurants.');
+        setError(err.response?.data?.message ?? 'Failed to load restaurants.')
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchRestaurants();
-  }, []);
+    fetchRestaurants()
+  }, [])
 
-  if (loading) return <p>Loading restaurants...</p>;
-  if (error) return <p className="error-text">{error}</p>;
+  if (loading) return <p>Loading restaurants...</p>
+  if (error) return <p className="error-text">{error}</p>
 
   return (
-    <section>
+    <section className="page">
       <h2>Restaurants</h2>
       <div className="card-grid">
         {restaurants.map((restaurant) => (
@@ -40,5 +40,5 @@ export default function RestaurantListPage() {
         ))}
       </div>
     </section>
-  );
+  )
 }

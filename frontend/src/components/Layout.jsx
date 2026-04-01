@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router-dom';
 import { Outlet } from 'react-router-dom';
+import CartSidebar from './CartSidebar';
 
 const activeClass = ({ isActive }) => (isActive ? 'nav-link active' : 'nav-link');
 
@@ -19,9 +20,14 @@ export default function Layout() {
           </NavLink>
         </nav>
       </header>
-      <main className="page-container">
-        <Outlet />
-      </main>
+      <div className="layout-grid">
+        <main className="page-container">
+          <Outlet />
+        </main>
+        <aside className="sidebar-container">
+          <CartSidebar />
+        </aside>
+      </div>
     </div>
   );
 }

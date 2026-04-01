@@ -1,88 +1,33 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  clearCart,
-  getCart,
-  placeOrder as placeOrderRequest,
-  removeCartItem,
-  updateCartItem,
-} from '../api/client';
 import { Link } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
 
 function formatCurrency(value) {
   return `$${Number(value || 0).toFixed(2)}`;
 }
 
 export default function CartPage() {
-  const [cartData, setCartData] = useState({ cart: { items: [] }, totals: {} });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [placingOrder, setPlacingOrder] = useState(false);
-  const [lastOrder, setLastOrder] = useState(null);
-
-  const loadCart = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const data = await getCart();
-      setCartData(data);
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to load cart.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCart();
-  }, []);
-
-  const isEmpty = useMemo(() => (cartData.cart.items || []).length === 0, [cartData]);
-
-  const updateQuantity = async (itemId, quantity) => {
-    try {
-      const data = await updateCartItem(itemId, quantity);
-      setCartData(data);
-    } catch (err) {
-      alert(err?.response?.data?.message || 'Unable to update quantity.');
-    }
-  };
-
-  const removeItem = async (itemId) => {
-    try {
-      const data = await removeCartItem(itemId);
-      setCartData(data);
-    } catch (err) {
-      alert(err?.response?.data?.message || 'Unable to remove item.');
-    }
-  };
-
-  const handlePlaceOrder = async () => {
-    setPlacingOrder(true);
-    setError('');
-
-    try {
-      const order = await placeOrderRequest({
-        delivery_address: '101 Customer Ave',
-        customer_note: 'Mock order from React demo',
-      });
-      setLastOrder(order);
-      await loadCart();
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Order creation failed.');
-    } finally {
-      setPlacingOrder(false);
-    }
-  };
+  const {
+    cart,
+    totals,
+    loading,
+    error,
+    loadCart,
+    updateQuantity,
+    removeItem,
+    clearAll,
+  } = useCart();
 
   if (loading) {
     return <p>Loading cart...</p>;
   }
 
+  const items = cart?.items ?? [];
+  const isEmpty = items.length === 0;
+
   return (
     <section>
       <h1>Cart</h1>
-      <p>Review your order before placing it.</p>
+      <p>Review your order before checkout.</p>
 
       {error && <p className="error-text">{error}</p>}
 
@@ -91,7 +36,7 @@ export default function CartPage() {
       ) : (
         <>
           <div className="card-list">
-            {cartData.cart.items.map((item) => (
+            {items.map((item) => (
               <article key={item.id} className="card">
                 <h3>{item.menu_item?.name || 'Menu Item'}</h3>
                 <p>{formatCurrency(item.unit_price)} each</p>
@@ -108,33 +53,23 @@ export default function CartPage() {
 
           <div className="totals-card">
             <h3>Summary</h3>
-            <p>Subtotal: {formatCurrency(cartData.totals.subtotal)}</p>
-            <p>Delivery fee: {formatCurrency(cartData.totals.delivery_fee)}</p>
-            <p>Tax: {formatCurrency(cartData.totals.tax_amount)}</p>
+            <p>Subtotal: {formatCurrency(totals.subtotal)}</p>
+            <p>Delivery fee: {formatCurrency(totals.delivery_fee)}</p>
+            <p>Tax: {formatCurrency(totals.tax_amount)}</p>
             <p>
-              <strong>Total: {formatCurrency(cartData.totals.total_amount)}</strong>
+              <strong>Total: {formatCurrency(totals.total_amount)}</strong>
             </p>
-            <button onClick={handlePlaceOrder} disabled={placingOrder}>
-              {placingOrder ? 'Placing...' : 'Place order'}
-            </button>
+            <Link to="/checkout" className="button primary">
+              Proceed to checkout
+            </Link>
             <button
-              onClick={async () => {
-                await clearCart();
-                await loadCart();
-              }}
+              onClick={clearAll}
               className="secondary-btn"
             >
               Clear cart
             </button>
           </div>
         </>
-      )}
-
-      {lastOrder && (
-        <div className="success-banner">
-          Order #{lastOrder.id} placed.{' '}
-          <Link to={`/orders/${lastOrder.id}/track`}>Track order</Link>
-        </div>
       )}
     </section>
   );

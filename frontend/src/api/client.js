@@ -25,7 +25,16 @@ export async function getRestaurants() {
 
 export async function getMenuByRestaurant(restaurantId) {
   const response = await api.get(`/restaurants/${restaurantId}/menu-items`)
-  return response.data
+  const payload = response.data?.data
+  if (payload?.data) {
+    return payload.data
+  }
+
+  if (Array.isArray(payload)) {
+    return payload
+  }
+
+  return []
 }
 
 export async function getCart() {

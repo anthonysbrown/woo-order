@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { addCartItem, getMenuByRestaurant } from '../api/client';
+import { getMenuByRestaurant } from '../api/client';
+import { useCart } from '../context/CartContext';
 
 export default function MenuPage() {
   const { restaurantId } = useParams();
+  const { addToCart, loading: cartLoading } = useCart();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -28,7 +30,7 @@ export default function MenuPage() {
   const onAdd = async (menuItemId) => {
     setMessage('');
     try {
-      await addCartItem(menuItemId, 1);
+      await addToCart(menuItemId, 1);
       setMessage('Added to cart.');
     } catch (err) {
       setMessage(err.response?.data?.message || 'Unable to add item. Make sure you are logged in as customer.');
@@ -50,7 +52,9 @@ export default function MenuPage() {
             <h3>{item.name}</h3>
             <p className="muted">{item.description || 'No description'}</p>
             <p className="strong">${item.price}</p>
-            <button onClick={() => onAdd(item.id)}>Add to cart</button>
+            <button onClick={() => onAdd(item.id)} disabled={cartLoading}>
+              {cartLoading ? 'Adding...' : 'Add to cart'}
+            </button>
           </article>
         ))}
       </div>
