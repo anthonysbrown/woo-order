@@ -13,6 +13,7 @@ class Order extends Model
         'customer_id',
         'restaurant_id',
         'status',
+        'idempotency_key',
         'subtotal',
         'delivery_fee',
         'tax_amount',

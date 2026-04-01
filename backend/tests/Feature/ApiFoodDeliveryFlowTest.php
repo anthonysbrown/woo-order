@@ -58,6 +58,7 @@ class ApiFoodDeliveryFlowTest extends TestCase
         $orderCreateResponse = $this->postJson('/api/orders', [
             'delivery_address' => '123 Test Street',
             'customer_note' => 'Leave at door',
+            'idempotency_key' => 'test-key-1',
         ], [
             'Authorization' => "Bearer {$customerToken}",
         ]);
@@ -82,5 +83,44 @@ class ApiFoodDeliveryFlowTest extends TestCase
             'Authorization' => "Bearer {$customerToken}",
         ])->assertOk()
             ->assertJsonPath('status', Order::STATUS_ACCEPTED);
+    }
+
+    public function test_order_creation_is_idempotent_for_same_key(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $customerLogin = $this->postJson('/api/auth/login', [
+            'email' => 'customer@foodhub.test',
+            'password' => 'password123',
+        ])->assertOk()->json();
+
+        $customerToken = $customerLogin['token'];
+
+        $restaurant = Restaurant::query()->firstOrFail();
+        $menuItem = MenuItem::query()->where('restaurant_id', $restaurant->id)->firstOrFail();
+
+        $this->postJson('/api/cart/items', [
+            'menu_item_id' => $menuItem->id,
+            'quantity' => 1,
+        ], [
+            'Authorization' => "Bearer {$customerToken}",
+        ])->assertCreated();
+
+        $payload = [
+            'delivery_address' => '123 Test Street',
+            'customer_note' => 'Idempotent checkout',
+            'idempotency_key' => 'same-key-1',
+        ];
+
+        $first = $this->postJson('/api/orders', $payload, [
+            'Authorization' => "Bearer {$customerToken}",
+        ])->assertCreated()->json();
+
+        $second = $this->postJson('/api/orders', $payload, [
+            'Authorization' => "Bearer {$customerToken}",
+        ])->assertCreated()->json();
+
+        $this->assertSame($first['id'], $second['id']);
+        $this->assertDatabaseCount('orders', 1);
     }
 }

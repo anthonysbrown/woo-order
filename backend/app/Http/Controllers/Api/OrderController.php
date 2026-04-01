@@ -40,7 +40,8 @@ class OrderController extends Controller
             $order = $this->orderService->createFromCart(
                 $request->user(),
                 $payload['delivery_address'],
-                $payload['customer_note'] ?? null
+                $payload['customer_note'] ?? null,
+                $payload['idempotency_key'] ?? null
             );
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);

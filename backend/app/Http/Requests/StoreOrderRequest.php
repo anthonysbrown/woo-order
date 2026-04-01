@@ -24,6 +24,7 @@ class StoreOrderRequest extends FormRequest
         return [
             'delivery_address' => ['required', 'string', 'max:500'],
             'customer_note' => ['nullable', 'string', 'max:1000'],
+            'idempotency_key' => ['nullable', 'string', 'max:64'],
         ];
     }
 }
